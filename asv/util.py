@@ -311,7 +311,11 @@ def check_output(args, valid_return_codes=(0,), timeout=120, dots=True,
             'STDOUT -------->',
             stdout[:-1],
             'STDERR -------->',
-            stderr[:-1]
+            stderr[:-1],
+            'cwd ----------->',
+            os.path.abspath(cwd if cwd is not None else os.curdir),
+            'env ----------->',
+            str(env),
         ])
 
         return '\n'.join(content)

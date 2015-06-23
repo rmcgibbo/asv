@@ -12,6 +12,7 @@ import six
 from .. import environment
 from ..console import log
 from .. import util
+from . import conda_cache
 
 
 class Conda(environment.Environment):
@@ -40,6 +41,25 @@ class Conda(environment.Environment):
         self._python = python
         self._requirements = requirements
         super(Conda, self).__init__(conf)
+        self._conda_recipe = getattr(conf, 'conda_recipe_dir', 'conda-recipe')
+        self._cache = condabuild_cache.CondaCache(conf, self._path)
+
+    def build_project(self, commit_hash):
+        self.checkout_project(commit_hash)
+        conda_build = util.which('conda-build')
+        log.info("Building for {0}".format(self.name))
+
+        environ=dict(**os.environ)
+        environ['SOURCE_PATH'] = self._build_root
+        subprocess.check_call([
+            conda_build,
+            self._conda_recipe, '--build-only'], env=environ)
+
+        fn = subprocess.check_output([
+            conda_build,
+            self._conda_recipe,
+            '--output'], env=environ).decode('utf-8').strip()
+        return fn
 
     @classmethod
     def matches(self, python):
@@ -84,6 +104,21 @@ class Conda(environment.Environment):
             return False
         return True
 
+    def install_project(self, conf, commit_hash=None):
+        if commit_hash is None:
+            commit_hash = self._cache.get_existing_commit_hash()
+            if commit_hash is None:
+                commit_hash = self.repo.get_hash_from_master()
+
+                self.uninstall(conf.project)
+
+        build_bz2 = self._cache.build_project_cached(
+            self, conf, commit_hash)
+
+        if build_bz2 is None:
+            build_bz2 = self.build_project(commit_hash)
+        self.install(build_bz2)
+
     def _setup(self):
         try:
             conda = util.which('conda')
@@ -98,15 +133,13 @@ class Conda(environment.Environment):
             '-p',
             self._path,
             '--use-index-cache',
-            'python={0}'.format(self._python),
-            'pip'])
+            'python={0}'.format(self._python)])
+
 
         log.info("Installing requirements for {0}".format(self.name))
         self._install_requirements()
 
     def _install_requirements(self):
-        self.install('wheel')
-
         if self._requirements:
             # Install all the dependencies with a single conda command.
             # This ensures we get the versions requested, or an error
@@ -125,11 +158,12 @@ class Conda(environment.Environment):
 
     def install(self, package):
         log.info("Installing into {0}".format(self.name))
-        self._run_executable('pip', ['install', package])
+        self._run_executable('conda', ['install', '--yes', package], env={
+            'CONDA_DEFAULT_ENV': self.hashname})
 
     def uninstall(self, package):
         log.info("Uninstalling from {0}".format(self.name))
-        self._run_executable('pip', ['uninstall', '-y', package],
+        self._run_executable('conda', ['uninstall', '-y', package],
                              valid_return_codes=None)
 
     def run(self, args, **kwargs):

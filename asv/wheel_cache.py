@@ -15,6 +15,7 @@ class WheelCache(object):
         self._root = root
         self._path = os.path.join(root, 'wheels')
         self._wheel_cache_size = getattr(conf, 'wheel_cache_size', 0)
+        self._extension = '.whl'
 
     def _get_wheel_cache_path(self, commit_hash):
         """
@@ -41,7 +42,7 @@ class WheelCache(object):
             return None
 
         for fn in os.listdir(cache_path):
-            if fn.endswith('.whl'):
+            if fn.endswith(self._extension):
                 return os.path.join(cache_path, fn)
         return None
 
@@ -104,7 +105,7 @@ class WheelCache(object):
 
         for commit_hash in names[:self._wheel_cache_size]:
             names = os.listdir(os.path.join(self._path, commit_hash))
-            if any(name.endswith('.whl') for name in names):
+            if any(name.endswith(self._extension) for name in names):
                 return commit_hash
 
         return None
