@@ -42,22 +42,30 @@ class Conda(environment.Environment):
         self._requirements = requirements
         super(Conda, self).__init__(conf)
         self._conda_recipe = getattr(conf, 'conda_recipe_dir', 'conda-recipe')
-        self._cache = condabuild_cache.CondaCache(conf, self._path)
+        self._cache = conda_cache.CondaCache(conf, self._path)
 
     def build_project(self, commit_hash):
         self.checkout_project(commit_hash)
         conda_build = util.which('conda-build')
-        log.info("Building for {0}".format(self.name))
+        log.info("Building for {0}\n".format(self.name))
 
         environ=dict(**os.environ)
         environ['SOURCE_PATH'] = self._build_root
-        subprocess.check_call([
-            conda_build,
-            self._conda_recipe, '--build-only'], env=environ)
+        try:
+            subprocess.check_call([
+                conda_build,
+                self._conda_recipe,
+                '--no-binstar-upload', '--no-test',
+                '--python', self._python,
+            ], env=environ)
+        except (subprocess.CalledProcessError, KeyboardInterrupt) as e:
+            self._run_executable('conda', ['clean' '--lock'])
+            raise e
 
         fn = subprocess.check_output([
             conda_build,
             self._conda_recipe,
+            '--python', self._python,
             '--output'], env=environ).decode('utf-8').strip()
         return fn
 
@@ -157,9 +165,9 @@ class Conda(environment.Environment):
             os.path.join(self._path, 'bin', executable)] + args, **kwargs)
 
     def install(self, package):
-        log.info("Installing into {0}".format(self.name))
-        self._run_executable('conda', ['install', '--yes', package], env={
-            'CONDA_DEFAULT_ENV': self.hashname})
+        log.info("Installing {0} into {1}".format(os.path.basename(package), self.name))
+        out = self._run_executable('conda', ['install', '--yes', package],
+                                   env={'CONDA_DEFAULT_ENV': self._path})
 
     def uninstall(self, package):
         log.info("Uninstalling from {0}".format(self.name))
