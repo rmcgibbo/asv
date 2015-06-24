@@ -7,6 +7,7 @@ from __future__ import (absolute_import, division, print_function,
 import os
 import shutil
 import itertools
+from collections import defaultdict
 
 import six
 from six.moves import zip as izip
@@ -205,6 +206,16 @@ class Publish(Command):
             val.sort(key=lambda x: x or '')
             params[key] = val
         params['branch'] = [safe_branch_name(branch) for branch in conf.branches]
+
+
+        # mapping from benchmark name to the list of parameter
+        # sets (curves)
+        graphs_json_record = defaultdict(lambda: [])
+        for g in graphs.values():
+            if g.params == {'summary': None}:
+                continue
+            graphs_json_record[g.benchmark_name].append(g.params)
+
         util.write_json(os.path.join(conf.html_dir, "index.json"), {
             'project': conf.project,
             'project_url': conf.project_url,
@@ -213,5 +224,6 @@ class Publish(Command):
             'params': params,
             'benchmarks': benchmark_map,
             'machines': machines,
-            'tags': tags
+            'tags': tags,
+            'graphs': dict(graphs_json_record),
         })

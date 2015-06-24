@@ -812,134 +812,25 @@ $(function() {
             /* Given a specific group of parameters, generate the legend
                label to display for that line. Differences is an object of
                parameters that have different values across all graphs. */
-            function graph_label(state, differences) {
-                ignore = {
-                    'os': null,
-                    'cpu': null,
-                    'arch': null,
-                    'ram': null
-                };
-
-                var parts = [];
-                $.each(state, function(key, value) {
-                    if (!ignore.hasOwnProperty(key) &&
-                        differences.hasOwnProperty(key)) {
-                        if (value) {
-                            parts.push(key + "-" + value);
-                        } else {
-                            parts.push(key);
-                        }
-                    }
-                });
-                parts.sort();
-                return parts.join('; ');
+            function graph_label(state) {
+                return state.machine;
             }
 
-            /* For a given parameter matrix, generate all permutations. */
-            function permutations(matrix) {
-                if (obj_length(matrix) === 0) {
-                    return [{}];
+            all = [];
+            $.each(master_json.graphs[current_benchmark], function(i, item) {
+                var include = true;
+                $.each(item, function(key, value) {
+                    include = include && (state[key].indexOf(value) != -1);
+                });
+                if (include) {
+                    all.push([
+                        graph_to_path(current_benchmark, item),
+                        [[null, graph_label(item)]]]);
                 }
 
-                matrix = obj_copy(matrix);
-                var key = obj_get_first_key(matrix);
-                var entry = matrix[key];
-                delete matrix[key];
-
-                var results = [];
-                $.each(permutations(matrix), function(i, result) {
-                    result = obj_copy(result);
-                    if (entry.length) {
-                        $.each(entry, function(i, value) {
-                            result[key] = value;
-                            results.push(obj_copy(result));
-                        });
-                    } else {
-                        result[key] = null;
-                        results.push(obj_copy(result));
-                    }
-                });
-
-                results.sort();
-                return results;
-            }
-
-            /* For all of the selected graphs, find out which parameters
-               have different values across them.  We don't want to show
-               parameters that are the same across all graphs in the
-               legend labels, as that information is not really
-               necessary. */
-            function find_different_properties(graphs) {
-                var different = {};
-                var last_values = obj_copy(graphs[0]);
-                $.each(graphs, function(i, graph) {
-                    $.each(graph, function(key, val) {
-                        if (last_values[key] != val) {
-                            different[key] = true;
-                        }
-                    });
-                });
-                return different;
-            }
-
-            if (current_benchmark) {
-                /* For the current set of enabled parameters, generate a
-                   list of all the permutations we need to load. */
-                var state_permutations = permutations(state);
-                /* Find where the parameters are different. */
-                var different = find_different_properties(state_permutations);
-                /* For parameterized tests: names of benchmark parameters */
-                var params = master_json.benchmarks[current_benchmark].params;
-                var param_names = master_json.benchmarks[current_benchmark].param_names;
-                /* Selected permutations of benchmark parameters, omitting x-axis */
-                var selection = obj_copy(param_selection);
-                selection[x_coordinate_axis] = [null]; /* value not referenced, set to null */
-                var param_permutations = permutations(selection);
-
-                /* Generate a master list of URLs and legend labels for
-                   the graphs. */
-                var all = [];
-                $.each(state_permutations, function(i, perm) {
-                    var graph_contents = [];
-                    $.each(param_permutations, function(k, param_perm) {
-                        /* For each state value, there can be several
-                           benchmark parameter sets to plot */
-                        labels = obj_copy(perm);
-                        for (var axis = 0; axis < params.length + 1; ++axis) {
-                            if (axis != x_coordinate_axis) {
-                                if (axis == 0) {
-                                    /* Add time/commit value to the labels */
-                                    var timestamp = param_perm[axis];
-                                    different["commit"] = true;
-                                    if (timestamp === null) {
-                                        labels["commit"] = "last";
-                                    }
-                                    else {
-                                        labels["commit"] = ""+master_json.date_to_hash[timestamp];
-                                    }
-                                }
-                                else if (params[axis-1].length > 1) {
-                                    /* Add parameter value to the labels */
-                                    if (param_perm[axis] === null) {
-                                        /* Empty permutation */
-                                        return;
-                                    }
-                                    different[param_names[axis-1]] = true;
-                                    labels[param_names[axis-1]] = "" + convert_benchmark_param_value(params[axis-1][param_perm[axis]]);
-                                }
-                            }
-                        }
-                        graph_contents.push([param_perm,
-                                             graph_label(labels, different)]);
-                    });
-                    all.push([graph_to_path(current_benchmark, perm),
-                              graph_contents]);
-                });
-                return all;
-            } else {
-                return [];
-            }
-        }
+            });
+            return all;
+        };
 
         /* Convert loaded graph data to a format flot understands, by
            treating either time or one of the parameters as x-axis,
@@ -1022,6 +913,7 @@ $(function() {
         graphs = [];
 
         to_load = collect_graphs(current_benchmark, state, benchmark_param_selection);
+
         var failures = 0;
         var count = 1;
 
@@ -1043,24 +935,7 @@ $(function() {
                     count += 1;
                 });
                 update_graphs();
-            }).fail(function() {
-                failures += 1;
-                if (failures == to_load.length) {
-                    /* If we don't get any results, we check that the
-                    webserver is still live by loading a file we know
-                    we have.  If that fails, too, then the webserver
-                    is probably down. */
-                    $.ajax({
-                        url: "swallow.ico",
-                        cache: false
-                    }).done(function (index) {
-                        update_graphs();
-                        no_data();
-                    }).fail(function () {
-                        network_error();
-                    });
-                }
-            });
+            })
         });
     }
 
