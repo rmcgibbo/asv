@@ -59,7 +59,7 @@ class Conda(environment.Environment):
                 '--python', self._python,
             ], env=environ)
         except (subprocess.CalledProcessError, KeyboardInterrupt) as e:
-            self._run_executable('conda', ['clean' '--lock'])
+            self._run_executable('conda', ['clean', '--lock'])
             raise e
 
         fn = subprocess.check_output([
