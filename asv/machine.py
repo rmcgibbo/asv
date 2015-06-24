@@ -118,7 +118,13 @@ class Machine(object):
         ("ram",
          """
          The amount of physical RAM on this machine.  For example,
-         '4GB'.""")
+         '4GB'."""),
+
+        ("gpu",
+         """
+         The type of GPU in the machine, and/or driver information. 
+         For example, 'NVIDIA GTX TITAN'
+         """),
     ]
 
     hardcoded_machine_name = None
@@ -142,7 +148,8 @@ class Machine(object):
             'os': "{0} {1}".format(system, release),
             'arch': platform.machine(),
             'cpu': cpu,
-            'ram': ram
+            'ram': ram,
+            'gpu': '',
             }
 
     @staticmethod
