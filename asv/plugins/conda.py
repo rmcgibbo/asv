@@ -103,9 +103,14 @@ class Conda(environment.Environment):
     def check_presence(self):
         if not super(Conda, self).check_presence():
             return False
-        for fn in ['pip', 'python']:
-            if not os.path.isfile(os.path.join(self._path, 'bin', fn)):
+
+        if util.WIN:
+            if not os.path.isfile(os.path.join(self._path, 'python.exe')):
                 return False
+        else:
+            if not os.path.isfile(os.path.join(self._path, 'bin', 'python')):
+                return False
+
         try:
             self._run_executable('python', ['-c', 'pass'])
         except (subprocess.CalledProcessError, OSError):
