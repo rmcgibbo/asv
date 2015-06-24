@@ -59,7 +59,7 @@ class Conda(environment.Environment):
                 '--python', self._python,
             ], env=environ)
         except (subprocess.CalledProcessError, KeyboardInterrupt) as e:
-            self._run_executable('conda', ['clean', '--lock'])
+            self._run_conda(['clean', '--lock'])
             raise e
 
         fn = subprocess.check_output([
@@ -118,7 +118,7 @@ class Conda(environment.Environment):
             if commit_hash is None:
                 commit_hash = self.repo.get_hash_from_master()
 
-                self.uninstall(conf.project)
+                # self.uninstall(conf.project)
 
         build_bz2 = self._cache.build_project_cached(
             self, conf, commit_hash)
@@ -143,36 +143,32 @@ class Conda(environment.Environment):
             '--use-index-cache',
             'python={0}'.format(self._python)])
 
-
-        log.info("Installing requirements for {0}".format(self.name))
-        self._install_requirements()
-
-    def _install_requirements(self):
-        if self._requirements:
-            # Install all the dependencies with a single conda command.
-            # This ensures we get the versions requested, or an error
-            # otherwise. It's also quicker than doing it one by one.
-            args = ['install', '-p', self._path, '--yes']
-            for key, val in six.iteritems(self._requirements):
-                if val is not None:
-                    args.append("{0}={1}".format(key, val))
-                else:
-                    args.append(key)
-            self._run_executable('conda', args)
-
     def _run_executable(self, executable, args, **kwargs):
-        return util.check_output([
-            os.path.join(self._path, 'bin', executable)] + args, **kwargs)
+        if util.WIN:
+            if executable == 'python':
+                path = os.path.join(self._path, 'python.exe')
+            else:
+                path = os.path.join(self._path, 'Scripts', executable + '.exe')
+            return util.check_output([path] + args, **kwargs)
+        else:
+            return util.check_output([
+                os.path.join(self._path, 'bin', executable)] + args, **kwargs)
 
     def install(self, package):
         log.info("Installing {0} into {1}".format(os.path.basename(package), self.name))
-        out = self._run_executable('conda', ['install', '--yes', package, '-p', self._path])
+        stdout = self._run_conda(['install', '-y', package, '-p', self._path])
+        print(stdout)
 
-    def uninstall(self, package):
+    def uninstall(self, packauge):
         log.info("Uninstalling from {0}".format(self.name))
-        self._run_executable('conda', ['uninstall', '-y', package],
+        stdout = self._run_conda(['uninstall', '-y', package, '-p', self._path],
                              valid_return_codes=None)
+        print(stdout)
 
     def run(self, args, **kwargs):
         log.debug("Running '{0}' in {1}".format(' '.join(args), self.name))
         return self._run_executable('python', args, **kwargs)
+
+    def _run_conda(self, args, **kwargs):
+        conda = util.which('conda')
+        return util.check_output([conda] + args, **kwargs)
