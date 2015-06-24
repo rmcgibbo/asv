@@ -922,6 +922,10 @@ $(function() {
                 url: item[0],
                 cache: false
             }).done(function(data) {
+                if (data.length == 0) {
+                    return;
+                }
+
                 $.each(item[1], function(j, graph_content) {
                     var series;
                     series = filter_graph_data(data,
