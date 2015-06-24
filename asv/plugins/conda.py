@@ -166,8 +166,7 @@ class Conda(environment.Environment):
 
     def install(self, package):
         log.info("Installing {0} into {1}".format(os.path.basename(package), self.name))
-        out = self._run_executable('conda', ['install', '--yes', package],
-                                   env={'CONDA_DEFAULT_ENV': self._path})
+        out = self._run_executable('conda', ['install', '--yes', package, '-p', self._path])
 
     def uninstall(self, package):
         log.info("Uninstalling from {0}".format(self.name))
