@@ -1030,6 +1030,8 @@ $(function() {
                     return (v / multiplier).toPrecision(3);
                 };
             }
+        } else {
+            options.yaxis.axisLabel = master_json.benchmarks[current_benchmark].unit;
         }
     }
 
