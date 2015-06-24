@@ -402,7 +402,12 @@ def check_output(args, valid_return_codes=(0,), timeout=120, dots=True,
                         dots()
                     last_dot_time = time.time()
         else:
-            proc.wait(timeout=timeout)
+            try:
+                stdout, stderr = proc.communicate(timeout=timeout)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                is_timeout = True
+
     finally:
         if posix:
             # Restore signal handlers
@@ -426,13 +431,16 @@ def check_output(args, valid_return_codes=(0,), timeout=120, dots=True,
                 proc.terminate()
             proc.wait()
 
-    proc.stdout.flush()
-    proc.stderr.flush()
-    stdout_chunks.append(proc.stdout.read())
-    stderr_chunks.append(proc.stderr.read())
+    if posix:
+        proc.stdout.flush()
+        proc.stderr.flush()
+        stdout_chunks.append(proc.stdout.read())
+        stderr_chunks.append(proc.stderr.read())
+        stdout = b''.join(stdout_chunks)
+        stderr = b''.join(stderr_chunks)
 
-    stdout = b''.join(stdout_chunks).decode('utf-8', 'replace')
-    stderr = b''.join(stderr_chunks).decode('utf-8', 'replace')
+    stdout = stdout.decode('utf-8', 'replace')
+    stderr = stderr.decode('utf-8', 'replace')
 
     if is_timeout:
         retcode = TIMEOUT_RETCODE
