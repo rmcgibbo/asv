@@ -439,7 +439,7 @@ $(function() {
                     if (commit_hash) {
                         showTooltip(
                             item.pageX, item.pageY,
-                            pretty_second(y) + " @ " + commit_hash);
+                            y + " ns/day @ " + commit_hash + ' (' + item.series.label + ')');
                     }
                 }
             } else {
